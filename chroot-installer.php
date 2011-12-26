@@ -2,17 +2,19 @@
 <?php
 /**
  * Created by http://evgen.in/linux/chroot-installer.
- * User: Yauhen Palcheuski
+ * User: Evgeny Palcheusky
  * Date: 12/23/11
  * Time: 4:18 PM
  */
 
 $OPTION['os-support'] = array('centos', 'ubuntu');
+$OPTION['os-type-repo'] = array('yum' => array('centos'), 'deb' => array('ubuntu'));
 
 $OPTION['debug'] = false;
 $OPTION['dry-run'] = false;
 $OPTION['isRoot'] = false;
 $OPTION['osAccept'] = false;
+$OPTION['type-repo'] = false;
 $OPTION['copy-host-repo'] = false;
 $OPTION['install-packages'] = false;
 $OPTION['force'] = '';
@@ -29,7 +31,7 @@ for ($i = 1; $i < $_SERVER["argc"]; $i++)
        case "--version":
            echo  $_SERVER['argv'][0]."
 Chroot-Installer (v0.1)
-Copyright (c) 20011, Yauhen Palcheusky";
+Copyright (c) 2011, Evgeny Palcheusky";
            exit;
            break;
 
@@ -167,13 +169,14 @@ function installCentosChroot(){
     if (!file_exists($OPTION['chroot-dir'])) {
         sendCmd("mkdir -p ${OPTION['chroot-dir']}/var/lib/rpm");
     }
+    sendCmd("yum update");
     sendCmd("rpm --rebuilddb --root=${OPTION['chroot-dir']}/var/lib/rpm");
     sendCmd("rpm -i --root=${OPTION['chroot-dir']} --nodeps ${OPTION['centos-rpm']}");
     sendCmd("yum --installroot=${OPTION['chroot-dir']} install -y rpm-build yum");
     sendCmd("cp ${OPTION['chroot-dir']}/etc/skel/.??* ${OPTION['chroot-dir']}/root");
     sendCmd("mount --bind /proc ${OPTION['chroot-dir']}/proc");
     sendCmd("mount --bind /dev ${OPTION['chroot-dir']}/dev");
-    sendCmd("cp -f /etc/resolv.conf ${OPTION['chroot-dir']}/resolv.conf");
+    sendCmd("cp -r /etc/resolv.conf ${OPTION['chroot-dir']}/resolv.conf");
     //move repos.d
     if (!$OPTION['copy-host-repo']
             && confirmation("Do you want copy host repositories [y/n]")=='y'
@@ -192,7 +195,9 @@ function sendCmd($cmd){
     if($OPTION['dry-run']){
         echo $cmd.PHP_EOL;
     }else{
-        echo `$cmd`.PHP_EOL;
+        $handle = proc_open($cmd, array(0=>STDIN,1=>STDOUT,2=>STDERR), $pipes);
+        $retval = proc_close($handle);
+        echo PHP_EOL;
     }
 }
 
