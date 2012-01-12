@@ -2,7 +2,7 @@
 <?php
 /**
  * Created by http://evgen.in/linux/chroot-installer.
- * User: Evgeny Palcheusky
+ * User: Evgeny Palchevsky
  * Date: 12/23/11
  * Time: 4:18 PM
  */
@@ -14,7 +14,7 @@ $OPTION['debug'] = false;
 $OPTION['dry-run'] = false;
 $OPTION['isRoot'] = false;
 $OPTION['osAccept'] = false;
-$OPTION['type-repo'] = false;
+$OPTION['type-repo'] = 'deb';
 $OPTION['copy-host-repo'] = false;
 $OPTION['install-packages'] = false;
 $OPTION['force'] = '';
@@ -29,18 +29,11 @@ for ($i = 1; $i < $_SERVER["argc"]; $i++)
    {
        case "-v":
        case "--version":
-           echo  $_SERVER['argv'][0]."
+       echo "
 Chroot-Installer (v0.1)
-Copyright (c) 2011, Evgeny Palcheusky";
+Copyright (c) 2011-2012, Evgeny Palchevsky
+";
            exit;
-           break;
-
-       case "--debug":
-           $OPTION['debug'] = true;
-           break;
-
-       case "--force":
-           $OPTION['force'] = " --force";
            break;
 
        case "--chroot-dir":
@@ -62,34 +55,18 @@ Copyright (c) 2011, Evgeny Palcheusky";
        case "-?":
        case "-h":
        case "--help":
-            echo
-<<<MSG
-Chroot-Installer (v0.1)
-Copyright (c) 20011, Yauhen Palcheusky
-
-This will install chroot environment for your experiments.
-Chroot is jail environment that helps your divide configurations with host OS.
-
-Usage: ${argv[0]} --chroot-dir [DIR]
-
-   --help, -help, -h, or -?     to get this help.
-   --version                    to return the version of this file.
-   --dry-run                        to fake the SQL and PHP commands.
-   --chroot-dir                    to ignore SQL errors and keep on going.
-   --centos-repo [path,uri]        to change base directory from ${OPTION['basedir']}.
-
-This program is for testing and debugging purposes only;
-it is NOT intended for production use.
-
-Support: chroot-installer@evgen.in
-MSG;
-
+       default:
+            helpMsg();
     }
+}
+
+if(!$OPTION['chroot-dir']){
+    helpMsg();
+    die();
 }
 
 checkUser();
 checkOS();
-
 
 $brief = "
 Task Brief:
@@ -107,11 +84,18 @@ if($OPTION['dry-run']){
 echo $brief.PHP_EOL;
 
 $message   =  "Is it here all right? Are you sure to do this [y/n]";
-if (confirmation($message) == 'y') {
+if (strtolower(confirmation($message)) == 'y') {
     echo PHP_EOL.'OK! Let\'s try...'.PHP_EOL;
+}else{
+    echo "Verify all" . PHP_EOL;
+    exit;
 }
 
 installCentosChroot();
+//installDebianChroot();
+
+
+
 
 
 
@@ -157,11 +141,45 @@ function confirmation($msg){
     return $confirmation;
 }
 
-function installDebChroot(){
+function installDebianChroot(){
+    global $OPTION;
+    $OPTION['codename'] = getCodename();
+    $OPTION['kernel_bit'] = getKernelBit();
+
     echo 'Install debootstrap'.PHP_EOL;
-    echo `echo 'deb http://ubuntu.mirror.cambrium.nl/ubuntu/ lucid main universe' >> /etc/apt/sources.list` . PHP_EOL;
-    echo `apt-get install debootstrap` . PHP_EOL;
-    echo "debootstrap --variant=buildd --arch i386 lucid ${OPTION['chroot-dir']} http://archive.ubuntu.com/ubuntu/";
+    sendCmd("echo 'deb http://ubuntu.mirror.cambrium.nl/ubuntu/ ${OPTION['codename']} main universe' >> /etc/apt/sources.list");
+    sendCmd("apt-get install debootstrap");
+    sendCmd("debootstrap --variant=buildd --arch ${OPTION['kernel_bit']} ${OPTION['codename']} ${OPTION['chroot-dir']} http://archive.ubuntu.com/ubuntu/");
+
+    echo "Copy files...".PHP_EOL;
+    sendCmd("cp /etc/resolv.conf ${OPTION['chroot-dir']}/etc/resolv.conf");
+    sendCmd("cp /etc/apt/sources.list ${OPTION['chroot-dir']}/etc/apt/sources.list");
+    sendCmd("mount --bind /proc ${OPTION['chroot-dir']}/proc");
+    sendCmd("mount --bind /dev ${OPTION['chroot-dir']}/dev");
+//    sendCmd("mount -a");
+
+    echo "Copy files...".PHP_EOL;
+}
+
+function getCodename(){
+    global $OPTION;
+    $release_info = file('/etc/lsb-release');
+    foreach($release_info as $str){
+        if(strstr($str, "DISTRIB_CODENAME")!==false){
+            $arr = explode("=", $str);
+            $codename = trim($arr[1]);
+            break;
+        }
+    }
+    if($codename=='x86_64'){
+        $codename = 'amd64';
+    }
+    return $codename;
+}
+
+function getKernelBit(){
+    $kernel_bit = trim(`uname -m`);
+    return $kernel_bit;
 }
 
 function installCentosChroot(){
@@ -201,5 +219,31 @@ function sendCmd($cmd){
     }
 }
 
+
+function helpMsg(){
+    global $OPTION, $argv;
+    echo <<<MSG
+Chroot-Installer (v0.1)
+Copyright (c) 2011-2012, Evgeny Palchevsky
+
+This will install chroot environment for your experiments.
+Chroot is jail environment to divide configurations with host OS.
+
+Usage: ${argv[0]} --chroot-dir [DIR]
+
+   --help, -help, -h, or -?     to get this help.
+   --version                    to return the version of this file.
+   --dry-run                    to test cli commands.
+   --chroot-dir                 to set chroot directory.
+
+   --centos-repo [path,uri]     to set centos-release.rpm
+
+This program is for testing and debugging purposes only;
+it is NOT intended for production use.
+
+Support: chroot-installer@evgen.in
+
+MSG;
+}
 
 ?>
