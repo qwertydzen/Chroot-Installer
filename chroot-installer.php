@@ -68,22 +68,22 @@ if(!$OPTION['chroot-dir']){
 checkUser();
 checkOS();
 
-$brief = "
+$brief = <<<SUMMARY
 Task Brief:
-isRoot \t = \t " . (int)$OPTION['isRoot'] . "
-OS \t = \t ${OPTION['isOS']}
-chroot-dir \t = \t ${OPTION['chroot-dir']}
-centos-rpm \t = \t ${OPTION['centos-rpm']}
+root  = {$OPTION['isRoot']}
+linux = {$OPTION['isOS']}
+chroot-dir = {$OPTION['chroot-dir']}
+centos-rpm = {$OPTION['centos-rpm']}
 
-install-packages \t = \t ${OPTION['install-packages']}
-copy-host-repo \t = \t " . (int)$OPTION['copy-host-repo'] . "
-";
+install-packages = {$OPTION['install-packages']}
+copy-host-repo   = {$OPTION['copy-host-repo']}
+SUMMARY;
 if($OPTION['dry-run']){
     $brief = PHP_EOL."DRY-RUN MODE!".PHP_EOL.$brief;
 }
 echo $brief.PHP_EOL;
 
-$message   =  "Is it here all right? Are you sure to do this [y/n]";
+$message   =  "Is it all right here? Are you sure to do this [y/n]";
 if (strtolower(confirmation($message)) == 'y') {
     echo PHP_EOL.'OK! Let\'s try...'.PHP_EOL;
 }else{
@@ -194,7 +194,7 @@ function installCentosChroot(){
     sendCmd("cp ${OPTION['chroot-dir']}/etc/skel/.??* ${OPTION['chroot-dir']}/root");
     sendCmd("mount --bind /proc ${OPTION['chroot-dir']}/proc");
     sendCmd("mount --bind /dev ${OPTION['chroot-dir']}/dev");
-    sendCmd("cp -r /etc/resolv.conf ${OPTION['chroot-dir']}/resolv.conf");
+    sendCmd("cp -r /etc/resolv.conf ${OPTION['chroot-dir']}/etc/resolv.conf");
     //move repos.d
     if (!$OPTION['copy-host-repo']
             && confirmation("Do you want copy host repositories [y/n]")=='y'
@@ -236,7 +236,7 @@ Usage: ${argv[0]} --chroot-dir [DIR]
    --dry-run                    to test cli commands.
    --chroot-dir                 to set chroot directory.
 
-   --centos-repo [path,uri]     to set centos-release.rpm
+   --centos-rpm [path,uri]     to set centos-release.rpm
 
 This program is for testing and debugging purposes only;
 it is NOT intended for production use.
